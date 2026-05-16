@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>fw — download</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="card recv">
+    <header class="top">
+      <h1>fw</h1>
+    </header>
+
+    <section id="loading">
+      <div class="meta">Loading file info...</div>
+    </section>
+
+    <section id="ready" class="hidden">
+      <div class="filename" id="filename"></div>
+      <div class="meta" id="size"></div>
+      <div class="meta" id="expires"></div>
+      <div class="meta hidden" id="dirhint">(folder &mdash; arrives as .zip)</div>
+      <a class="download-btn" id="download-btn" href="#" download>Download</a>
+    </section>
+
+    <section id="error" class="hidden">
+      <div class="error" id="error-msg"></div>
+    </section>
+  </main>
+
+  <script type="module" src="/recv.js"></script>
+</body>
+</html>

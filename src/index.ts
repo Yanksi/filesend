@@ -1,5 +1,6 @@
 export interface Env {
   BUCKET: R2Bucket;
+  ASSETS: Fetcher;
   UPLOAD_SECRET: string;
   PUBLIC_BASE_URL: string;
   MAX_TTL_SECONDS: string;
@@ -273,7 +274,7 @@ async function handleMpuAbort(req: Request, env: Env): Promise<Response> {
   return new Response(null, { status: 204 });
 }
 
-// ---------- download ----------
+// ---------- download / metadata ----------
 
 async function findObjectByPrefix(env: Env, id: string): Promise<{ key: string; head: R2Object } | null> {
   for (const b of TTL_BUCKETS) {
@@ -292,30 +293,15 @@ function tokenFromRequest(req: Request, url: URL): string | null {
   return null;
 }
 
-// Browsers don't send URL fragments to the server, so a private share posted as
-// /d/<id>#t=<token> arrives at the worker with no token. We serve a tiny HTML
-// shim that re-issues the request with ?t=<token> in the query string. Non-
-// browser clients (curl, the fw CLI) won't send Accept: text/html and instead
-// get a clean JSON 403, so they aren't confused by HTML on the wire.
-const FRAGMENT_SHIM = `<!doctype html>
-<meta charset="utf-8">
-<title>Downloading...</title>
-<script>
-(function () {
-  var h = window.location.hash || "";
-  var m = /(?:^#|&)t=([^&]+)/.exec(h);
-  if (!m) { document.body.innerText = "Missing token."; return; }
-  var token = decodeURIComponent(m[1]);
-  var u = new URL(window.location.href);
-  u.hash = "";
-  u.searchParams.set("t", token);
-  window.location.replace(u.toString());
-})();
-</script>
-<noscript>This download requires JavaScript to forward the token. Add ?t=&lt;token&gt; to the URL.</noscript>
-`;
-
-async function handleDownload(req: Request, env: Env, ctx: ExecutionContext, id: string): Promise<Response> {
+// Shared lookup + auth used by both /d/:id and /meta/:id. Returns the object
+// head + key on success, or a ready-to-return error Response. Expired objects
+// are scheduled for deletion via waitUntil before the 404 is returned.
+async function gatedHead(
+  req: Request,
+  env: Env,
+  ctx: ExecutionContext,
+  id: string,
+): Promise<{ key: string; head: R2Object; md: Record<string, string> } | Response> {
   const url = new URL(req.url);
   const found = await findObjectByPrefix(env, id);
   if (!found) return jsonError("not_found", "No such file", 404, id);
@@ -330,17 +316,9 @@ async function handleDownload(req: Request, env: Env, ctx: ExecutionContext, id:
   }
 
   const visibility = (md.visibility as Visibility) || "private";
-  const supplied = tokenFromRequest(req, url);
-
   if (visibility === "private") {
+    const supplied = tokenFromRequest(req, url);
     if (!supplied) {
-      const accept = req.headers.get("accept") || "";
-      if (accept.includes("text/html")) {
-        return new Response(FRAGMENT_SHIM, {
-          status: 200,
-          headers: { "content-type": "text/html; charset=utf-8" },
-        });
-      }
       return jsonError("forbidden", "Missing token for private file", 403, id);
     }
     const expectedHash = md.token_hash || "";
@@ -350,17 +328,59 @@ async function handleDownload(req: Request, env: Env, ctx: ExecutionContext, id:
     }
   }
 
-  const obj = await env.BUCKET.get(key);
+  return { key, head, md };
+}
+
+async function handleDownload(req: Request, env: Env, ctx: ExecutionContext, id: string): Promise<Response> {
+  const url = new URL(req.url);
+  const acceptHtml = (req.headers.get("accept") || "").includes("text/html");
+  const dlFlag = url.searchParams.get("dl") === "1";
+
+  // Browsers (no ?dl=1) get the landing page. The page itself calls /meta/:id
+  // to fetch details and render — so we don't pay an R2 head() here just to
+  // decide what to serve.
+  if (acceptHtml && !dlFlag) {
+    return env.ASSETS.fetch(new URL("/recv.html", req.url));
+  }
+
+  const gate = await gatedHead(req, env, ctx, id);
+  if (gate instanceof Response) return gate;
+
+  const obj = await env.BUCKET.get(gate.key);
   if (!obj) return jsonError("not_found", "Object disappeared", 404, id);
 
+  const md = gate.md;
   const filename = (md.original_name || "file").replace(/"/g, "");
   const headers = new Headers();
   headers.set("content-type", md.content_type || "application/octet-stream");
   headers.set("content-disposition", `attachment; filename="${filename}"`);
   headers.set("x-fw-is-dir", md.is_dir === "true" ? "true" : "false");
-  headers.set("x-fw-expires-at", String(expiresAt));
+  headers.set("x-fw-expires-at", md.expires_at ?? "0");
+  headers.set("cache-control", "no-store");
   if (md.size) headers.set("content-length", md.size);
   return new Response(obj.body, { status: 200, headers });
+}
+
+async function handleMeta(req: Request, env: Env, ctx: ExecutionContext, id: string): Promise<Response> {
+  const gate = await gatedHead(req, env, ctx, id);
+  if (gate instanceof Response) return gate;
+  const md = gate.md;
+  const body = {
+    id,
+    expires_at: parseInt(md.expires_at ?? "0", 10),
+    original_name: md.original_name || "file",
+    is_dir: md.is_dir === "true",
+    size: md.size ? parseInt(md.size, 10) : null,
+    visibility: md.visibility || "private",
+    content_type: md.content_type || "application/octet-stream",
+  };
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: {
+      "content-type": "application/json",
+      "cache-control": "no-store",
+    },
+  });
 }
 
 // ---------- router ----------
@@ -376,6 +396,11 @@ export default {
         const id = path.slice("/d/".length);
         if (!id || id.includes("/")) return jsonError("bad_request", "Bad id", 400);
         return await handleDownload(req, env, ctx, id);
+      }
+      if (method === "GET" && path.startsWith("/meta/")) {
+        const id = path.slice("/meta/".length);
+        if (!id || id.includes("/")) return jsonError("bad_request", "Bad id", 400);
+        return await handleMeta(req, env, ctx, id);
       }
 
       const authErr = requireAuth(req, env);

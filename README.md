@@ -11,6 +11,14 @@ fw send ./mydir         --ttl 1d --public
 fw recv https://files.example.dev/d/aB3xK9pQzM#t=xK2pQz
 ```
 
+The worker also serves a small **web UI** at its root URL: drop a file or
+folder, set TTL/visibility, get a share URL. Recipients who open a `/d/<id>`
+URL in a browser see a friendly landing page (filename, size, expiry) before
+the download starts. The Python CLI and the browser UI both use the same
+`/upload`, `/mpu/*`, and `/d/<id>` endpoints. See
+[docs/superpowers/specs/2026-05-17-web-ui-design.md](docs/superpowers/specs/2026-05-17-web-ui-design.md)
+for the design.
+
 ## Deploy the worker
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Yanksi/file_worker)

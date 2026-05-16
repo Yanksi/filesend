@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>fw — upload</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="card">
+    <header class="top">
+      <h1>fw</h1>
+      <div class="right">
+        <a href="#" id="forget" class="hidden">forget secret</a>
+      </div>
+    </header>
+
+    <!-- Secret-entry view (shown when no secret in localStorage) -->
+    <section id="secret-view" class="hidden">
+      <p style="color: var(--muted); font-size: 13px; margin-top: 0;">
+        First-time setup. Paste your upload secret below; it's kept in this
+        browser's localStorage and never sent except as
+        <code>Authorization: Bearer &lt;secret&gt;</code> on uploads.
+      </p>
+      <div class="row">
+        <input type="password" id="secret-input" placeholder="upload secret" style="flex: 1;" autocomplete="off">
+        <button id="secret-save">Save</button>
+      </div>
+    </section>
+
+    <!-- Upload view -->
+    <section id="upload-view" class="hidden">
+      <div id="drop" class="drop" tabindex="0">
+        <strong>Drop a file or folder here</strong>
+        <div class="or">or</div>
+        <button type="button" class="secondary" id="pick-file">Choose file</button>
+        <button type="button" class="secondary" id="pick-folder">Choose folder</button>
+        <div class="selected" id="selected">no selection</div>
+        <input type="file" id="file-input" class="hidden">
+        <input type="file" id="folder-input" class="hidden" webkitdirectory directory multiple>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="ttl">TTL</label>
+          <select id="ttl">
+            <option value="1h">1 hour</option>
+            <option value="1d" selected>1 day</option>
+            <option value="7d">7 days</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Visibility</label>
+          <label><input type="radio" name="vis" value="private" checked> Private</label>
+          <label><input type="radio" name="vis" value="public"> Public</label>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field" style="flex: 1;">
+          <label for="name">Name (optional)</label>
+          <input type="text" id="name" placeholder="overrides filename" style="flex: 1;">
+        </div>
+      </div>
+
+      <button id="upload" class="wide" disabled>Upload</button>
+
+      <progress id="progress" class="hidden" max="1" value="0"></progress>
+      <div id="progress-line" class="progress-line hidden"></div>
+      <div id="error" class="error hidden"></div>
+    </section>
+
+    <!-- Result view -->
+    <section id="result-view" class="hidden result">
+      <h2>Uploaded</h2>
+      <div class="urlrow">
+        <input type="text" id="result-url" readonly>
+        <button id="copy">Copy</button>
+      </div>
+      <div class="meta" id="result-meta"></div>
+      <button id="upload-another" class="wide secondary">Upload another</button>
+    </section>
+  </main>
+
+  <script type="module" src="/upload.js"></script>
+</body>
+</html>
