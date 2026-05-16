@@ -1,0 +1,16 @@
+node_modules/
+.wrangler/
+dist/
+.dev.vars
+*.log
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.uv-cache/
+.pytest_cache/
+
+# OS
+.DS_Store
+Thumbs.db

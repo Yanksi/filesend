@@ -1,0 +1,31 @@
+name = "file-worker"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+# Set with: wrangler secret put UPLOAD_SECRET
+# (Required by the worker; it refuses to start without one in the env binding.)
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "file-worker"
+preview_bucket_name = "file-worker-preview"
+
+[vars]
+# Public base URL the worker will print back in upload responses.
+# Override per-environment as needed.
+PUBLIC_BASE_URL = "https://file-worker.workers.dev"
+# Max TTL the worker will accept, in seconds. Matches the largest lifecycle bucket.
+MAX_TTL_SECONDS = "604800"
+
+# ---------------------------------------------------------------------------
+# R2 lifecycle rules are not yet declarable in wrangler.toml. After deploy,
+# configure them once via the dashboard or `wrangler r2 bucket lifecycle put`:
+#
+#   ttl-1h/   -> expire after 1 day
+#   ttl-1d/   -> expire after 1 day
+#   ttl-7d/   -> expire after 7 days
+#   ttl-max/  -> expire after 7 days
+#
+# Also configure aborting incomplete multipart uploads after 1 day on every
+# prefix so failed uploads don't leak storage.
+# ---------------------------------------------------------------------------
