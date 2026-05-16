@@ -13,20 +13,18 @@ fw recv https://files.example.dev/d/aB3xK9pQzM#t=xK2pQz
 
 ## Deploy the worker
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/YOUR-USERNAME/file-worker)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Yanksi/file_worker)
 
-Replace the URL above with your fork after cloning. The button reads
-`worker/wrangler.toml`, creates the R2 bucket, and prompts for the upload
-secret.
+Replace the URL above with your own fork. The button reads the repo-root
+`wrangler.toml`, creates the R2 bucket, and prompts for the upload secret.
 
 ### After the button finishes
 
 Two one-time post-deploy steps:
 
 1. **Set the upload secret.** This is the shared secret your client uses in
-   `Authorization: Bearer …`.
+   `Authorization: Bearer ...`.
    ```
-   cd worker
    wrangler secret put UPLOAD_SECRET
    ```
 2. **Configure R2 lifecycle rules** (the wrangler config language does not
@@ -46,14 +44,12 @@ Two one-time post-deploy steps:
 ### Manual deploy (no button)
 
 ```
-cd worker
 npm install
 wrangler secret put UPLOAD_SECRET
 wrangler deploy
 ```
 
-Edit `PUBLIC_BASE_URL` in `worker/wrangler.toml` if you've attached a custom
-domain.
+Edit `PUBLIC_BASE_URL` in `wrangler.toml` if you've attached a custom domain.
 
 ## Install the client
 
@@ -62,8 +58,8 @@ dependencies are declared inline in its PEP 723 header, so the first run
 materializes a venv automatically.
 
 ```
-git clone https://github.com/YOUR-USERNAME/file-worker.git
-cd file-worker
+git clone https://github.com/Yanksi/file_worker.git
+cd file_worker
 ln -s "$(pwd)/client/fw.py" ~/.local/bin/fw     # or `alias fw='uv run /full/path/to/fw.py'`
 fw config setup
 ```
