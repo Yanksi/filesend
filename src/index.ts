@@ -2,7 +2,10 @@ export interface Env {
   BUCKET: R2Bucket;
   ASSETS: Fetcher;
   UPLOAD_SECRET: string;
-  PUBLIC_BASE_URL: string;
+  // Optional override. If unset (or empty), the worker uses the origin of
+  // the incoming request to build share URLs - which "just works" for both
+  // workers.dev URLs and custom domains.
+  PUBLIC_BASE_URL?: string;
   MAX_TTL_SECONDS: string;
 }
 
@@ -120,8 +123,11 @@ function parseUploadParams(url: URL, req: Request, env: Env): UploadParams | Res
   };
 }
 
-function buildShareUrl(env: Env, id: string, token: string | null): string {
-  const base = env.PUBLIC_BASE_URL.replace(/\/$/, "");
+function buildShareUrl(req: Request, env: Env, id: string, token: string | null): string {
+  const baseRaw = env.PUBLIC_BASE_URL && env.PUBLIC_BASE_URL.length > 0
+    ? env.PUBLIC_BASE_URL
+    : new URL(req.url).origin;
+  const base = baseRaw.replace(/\/$/, "");
   return token ? `${base}/d/${id}#t=${token}` : `${base}/d/${id}`;
 }
 
@@ -143,10 +149,10 @@ function metadataFor(
   return md;
 }
 
-function uploadResponseBody(env: Env, id: string, params: UploadParams, token: string | null) {
+function uploadResponseBody(req: Request, env: Env, id: string, params: UploadParams, token: string | null) {
   return {
     id,
-    url: buildShareUrl(env, id, token),
+    url: buildShareUrl(req, env, id, token),
     expires_at: Math.floor(Date.now() / 1000) + params.ttlSeconds,
     ...(token ? { token } : {}),
   };
@@ -177,7 +183,7 @@ async function handleSmallUpload(req: Request, env: Env): Promise<Response> {
     httpMetadata: { contentType: parsed.contentType },
     customMetadata: metadataFor(parsed, tokenHash, null),
   });
-  return new Response(JSON.stringify(uploadResponseBody(env, id, parsed, token)), {
+  return new Response(JSON.stringify(uploadResponseBody(req, env, id, parsed, token)), {
     status: 200,
     headers: { "content-type": "application/json" },
   });
@@ -206,7 +212,7 @@ async function handleMpuInit(req: Request, env: Env): Promise<Response> {
   return new Response(JSON.stringify({
     key,
     upload_id: mpu.uploadId,
-    ...uploadResponseBody(env, id, parsed, token),
+    ...uploadResponseBody(req, env, id, parsed, token),
   }), {
     status: 200,
     headers: { "content-type": "application/json" },

@@ -11,9 +11,11 @@ bucket_name = "file-worker"
 preview_bucket_name = "file-worker-preview"
 
 [vars]
-# Public base URL the worker will print back in upload responses.
-# Override per-environment as needed.
-PUBLIC_BASE_URL = "https://file-worker.workers.dev"
+# Optional override for the host used in returned share URLs. Leave empty to
+# auto-detect from the request origin - which works for both *.workers.dev
+# and custom domains without any config. Only set this if you want share URLs
+# to point at a different host than where uploads come in (rare).
+PUBLIC_BASE_URL = ""
 # Max TTL the worker will accept, in seconds. Matches the largest lifecycle bucket.
 MAX_TTL_SECONDS = "604800"
 

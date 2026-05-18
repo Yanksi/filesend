@@ -57,7 +57,9 @@ wrangler secret put UPLOAD_SECRET
 wrangler deploy
 ```
 
-Edit `PUBLIC_BASE_URL` in `wrangler.toml` if you've attached a custom domain.
+Share URLs auto-detect the host the upload came in on, so they work for both
+`*.workers.dev` and any custom domain without config. Set `PUBLIC_BASE_URL` in
+`wrangler.toml` only if you want to override that (rare).
 
 ## Install the client
 
